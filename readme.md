@@ -14,7 +14,7 @@ I did Activity 10 as written, but because my data shows 133 municipalities inste
 
 So I thought I might try it with a different layout.  Would something like the following work, with some additional formatting?
 
-* [Lab 2 on my Github](https://github.com/ericdmj/lab-2/)
+* [Lab 2 on my Github - where you are right now](https://github.com/ericdmj/lab-2/)
 * [Lab 2 on Pages](https://ericdmj.github.io/lab-2/)
 
 All other thoughts are very welcome!
