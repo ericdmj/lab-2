@@ -5,6 +5,21 @@
     var attrArray = ["participation_2020", "participation_2016", "participation_2012", "participation_2008","participation_2004"]; //list of attributes
     var expressed = attrArray[0]; //initial attribute
     
+    //chart frame dimensions
+    var chartWidth = (window.innerWidth * .95) - 20,
+        chartHeight = 150,
+        leftPadding = 25,
+        rightPadding = 2,
+        topBottomPadding = 5,
+        chartInnerWidth = chartWidth - leftPadding - rightPadding,
+        chartInnerHeight = chartHeight - topBottomPadding * 2,
+        translate = "translate(" + leftPadding + "," + topBottomPadding + ")";
+
+    //create a scale to size bars proportionally to frame and for axis
+    var yScale = d3.scaleLinear()
+        .range([140, 0])
+        .domain([0, 100]);
+
     //begin script when window loads
     window.onload = setMap();
     
@@ -12,8 +27,8 @@
     function setMap() {
         
         //map frame dimensions
-        var width = window.innerWidth * .8,
-            height = 510;
+        var width = window.innerWidth * .95,
+            height = window.innerHeight * .95;
     
         //create container div for the map and chart
         var container = d3.select("body")
@@ -24,14 +39,20 @@
         var map = container.append("svg")
             .attr("class", "map")
             .attr("width", width)
-            .attr("height", height);
-    
-        //create Albers equal area conic projection centered on France
+            .attr("height", height)
+            .call(d3.zoom() // Add zoom behavior
+                .scaleExtent([1, 8]) // Define the minimum and maximum zoom scale
+                .on("zoom", zoomed)); // On zoom, call the zoomed function
+        
+        // Create a group to hold all map elements (paths, etc.)
+        var g = map.append("g");
+
+        //create Albers equal area conic projection centered on Virginia
         var projection = d3.geoAlbers()
-            .center([0, 37.2])
+            .center([0, 37.6])
             .rotate([79.6, 0, 0])
             .parallels([36, 39])
-            .scale(6000)
+            .scale(7500)
             .translate([width / 2, height / 2]);
     
         var path = d3.geoPath()
@@ -61,7 +82,7 @@
             console.log(virginiaMunicipalities);
     
             //add US States to map
-            var states = map.append("path")
+            var states = g.append("path")
                 .datum(unitedStates)
                 .attr("class", "states")
                 .attr("d", path);
@@ -73,14 +94,40 @@
             var colorScale = makeColorScale(csvData);
     
             //add enumeration units to the map
-            setEnumerationUnits(virginiaMunicipalities, map, path, colorScale);
+            setEnumerationUnits(virginiaMunicipalities, g, path, colorScale);
     
             //add coordinated visualization to the map
             setChart(csvData, colorScale);
+
+            //add dropdown menu to the map
+            createDropdown(csvData);
+
+            //create a box element for the map title
+            var titleBox = map.append("rect")
+                .attr("x", window.innerWidth-653)
+                .attr("y", 5)
+                .attr("rx", 5)
+                .attr("class", "titleBox")
+                .attr("height", 50)
+                .attr("width", 575);
+            
+            //create a text element for the map title
+            var mapTitle = map.append("text")
+                .attr("x", window.innerWidth-633)
+                .attr("y", 40)
+                .attr("class", "mapTitle")
+                .text("Voter Participation by Municipality");
+
         };
+
+        // Function to handle zoom events
+        function zoomed(event) {
+            g.attr("transform", event.transform); // Apply the transformation to the group
+    }
     
     }; //end of setMap()
-    
+
+
     function joinData(virginiaMunicipalities, csvData){
     
         //variables for data join
@@ -111,11 +158,15 @@
     
         return virginiaMunicipalities;
     };
-            
-    function setEnumerationUnits(virginiaMunicipalities, map, path,colorScale) {
+
+
+
+
+    
+    function setEnumerationUnits(virginiaMunicipalities, g, path,colorScale) {
     
             //add Virginia municipalities to map
-            var municipalities = map.selectAll(".municipalities")
+            var municipalities = g.selectAll(".municipalities")
                 .data(virginiaMunicipalities)
                 .enter()
                 .append("path")
@@ -126,11 +177,22 @@
                 .style("fill", function(d){            
                     var value = d.properties[expressed];            
                     if(value) {                
-                        return colorScale(d.properties[expressed]);            
+                        return colorScale(value);            
                     } else {                
                         return "#ccc";            
                     }
-                });
+                })
+                // Attach event listeners to the path elements
+                .on("mouseover", function(event, d){
+                    highlight(d.properties);
+                })
+                .on("mouseout", function(event, d){
+                    dehighlight(d.properties);
+                })
+                .on("mousemove", moveLabel);
+            
+            var desc = municipalities.append("desc")
+                .text('{"stroke": "#000", "stroke-width": "0.5px"}');
     };
     
     //function to create color scale generator
@@ -171,18 +233,67 @@
         return colorScale;
     };
     
+    //function to create a dropdown menu for attribute selection
+    function createDropdown(csvData){
+        //add select element
+        var dropdown = d3.select("body")
+            .append("select")
+            .attr("class", "dropdown")
+            .on("change", function(){
+                changeAttribute(this.value, csvData)
+            });
+
+        //add initial option
+        var titleOption = dropdown.append("option")
+            .attr("class", "titleOption")
+            .attr("disabled", "true")
+            .text("Select Attribute");
+
+        //add attribute name options
+        var attrOptions = dropdown.selectAll("attrOptions")
+            .data(attrArray)
+            .enter()
+            .append("option")
+            .attr("value", function(d){ return d })
+            .text(function(d){ return d });
+    };
+
+    //dropdown change event handler
+    function changeAttribute(attribute, csvData) {
+        //change the expressed attribute
+        expressed = attribute;
+
+        //recreate the color scale
+        var colorScale = makeColorScale(csvData);
+
+        //recolor enumeration units
+        var municipalities = d3.selectAll(".municipalities")
+            .style("fill", function (d) {
+                var value = d.properties[expressed];
+                if (value) {
+                    return colorScale(value);
+                } else {
+                    return "#ccc";
+                }
+            });
+
+        //Sort, resize, and recolor bars
+        var bars = d3.selectAll(".bar")
+            //Sort bars
+            .sort(function(a, b){
+                return b[expressed] - a[expressed];
+            });
+
+        updateChart(bars, csvData.length, colorScale);
+
+    };
+
     //function to create coordinated bar chart
     function setChart(csvData, colorScale){
-        //chart frame dimensions
-        var chartWidth = (window.innerWidth * .8) - 20,
-            chartHeight = 150,
-            leftPadding = 25,
-            rightPadding = 2,
-            topBottomPadding = 5,
-            chartInnerWidth = chartWidth - leftPadding - rightPadding,
-            chartInnerHeight = chartHeight - topBottomPadding * 2,
-            translate = "translate(" + leftPadding + "," + topBottomPadding + ")";
-    
+        
+        // Calculate the vertical position for the chart
+        var chartYPosition = window.innerHeight - chartHeight - 39;
+        
         //select the container div
         var container = d3.select(".svg-container");
 
@@ -190,7 +301,10 @@
         var chart = container.append("svg")
             .attr("width", chartWidth)
             .attr("height", chartHeight)
-            .attr("class", "chart");
+            .attr("class", "chart")
+            .style("position", "absolute")
+            .style("left", "30px")
+            .style("top", chartYPosition + "px");
     
         //create a rectangle for chart background fill
         var chartBackground = chart.append("rect")
@@ -198,12 +312,7 @@
             .attr("width", chartInnerWidth)
             .attr("height", chartInnerHeight)
             .attr("transform", translate);
-    
-        //create a scale to size bars proportionally to frame and for axis
-        var yScale = d3.scaleLinear()
-            .range([140, 0])
-            .domain([0, 100]);
-    
+
         //set bars for each municipality
         var bars = chart.selectAll(".bar")
             .data(csvData)
@@ -216,22 +325,21 @@
                 return "bar " + d.code;
             })
             .attr("width", chartInnerWidth / csvData.length - 1)
-            .attr("x", function(d, i){
-                return i * (chartInnerWidth / csvData.length) + leftPadding;
+            
+            .on("mouseover", function(event, d){
+                highlight(d)
             })
-            .attr("height", function(d, i){
-                return 140 - yScale(parseFloat(d[expressed]));
+            .on("mouseout", function(event, d){
+                dehighlight(d);
             })
-            .attr("y", function(d, i){
-                return yScale(parseFloat(d[expressed])) + topBottomPadding;
-            })
-            .style("fill", function(d){
-                return colorScale(d[expressed]);
-            });
-    
+            .on("mousemove", moveLabel);
+
+        var desc = bars.append("desc")
+            .text('{"stroke": "none", "stroke-width": "0px"}');
+
         //create a text element for the chart title
         var chartTitle = chart.append("text")
-            .attr("x", 680)
+            .attr("x", chartWidth-460)
             .attr("y", 30)
             .attr("class", "chartTitle")
             .text("Percentage of voter " + expressed + " in each municipality");
@@ -253,6 +361,111 @@
             .attr("width", chartInnerWidth)
             .attr("height", chartInnerHeight)
             .attr("transform", translate);
+        
+        //set bar positions, heights, and colors
+        updateChart(bars, csvData.length, colorScale);
+        
     };
     
+    //function to position, size, and color bars in chart
+    function updateChart(bars, n, colorScale){
+        //position bars
+        bars.attr("x", function(d, i){
+            return i * (chartInnerWidth / n) + leftPadding;
+        })
+        //size/resize bars
+        .attr("height", function(d, i){
+            return 140 - yScale(parseFloat(d[expressed]));
+        })
+        .attr("y", function(d, i){
+            return yScale(parseFloat(d[expressed])) + topBottomPadding;
+        })
+        //color/recolor bars
+        .style("fill", function(d){            
+            var value = d[expressed];            
+            if(value) {                
+                return colorScale(value);            
+            } else {                
+                return "#ccc";            
+            }    
+        });
+
+        var chartTitle = d3.select(".chartTitle")
+            .text("Percentage of voter " + expressed + " in each municipality");
+    }
+
+    //function to highlight enumeration units and bars
+    function highlight(props){
+        //change stroke
+        var selected = d3.selectAll("." + props.code)
+            .style("stroke", "white")
+            .style("stroke-width", "2");
+        setLabel(props);
+};
+
+//function to reset the element style on mouseout
+function dehighlight(props){
+    var selected = d3.selectAll("." + props.code)
+        .style("stroke", function(){
+            return getStyle(this, "stroke")
+        })
+        .style("stroke-width", function(){
+            return getStyle(this, "stroke-width")
+        });
+
+    function getStyle(element, styleName){
+        var styleText = d3.select(element)
+            .select("desc")
+            .text();
+
+        var styleObject = JSON.parse(styleText);
+
+        return styleObject[styleName];
+    };
+    d3.select(".infolabel")
+        .remove();
+};
+
+//function to create dynamic label
+function setLabel(props){
+    //label content
+    var labelAttribute = "<h1>" + props[expressed] +
+        "&#37;</h1><b>" + expressed + "</b>";
+
+    //create info label div
+    var infolabel = d3.select("body")
+        .append("div")
+        .attr("class", "infolabel")
+        .attr("id", props.code + "_label")
+        .html(labelAttribute);
+
+    var municipalityName = infolabel.append("div")
+        .attr("class", "labelname")
+        .html(props.name);
+};
+
+//function to move info label with mouse
+function moveLabel(){
+    //get width of label
+    var labelWidth = d3.select(".infolabel")
+        .node()
+        .getBoundingClientRect()
+        .width;
+
+    //use coordinates of mousemove event to set label coordinates
+    var x1 = event.clientX + 10,
+        y1 = event.clientY - 75,
+        x2 = event.clientX - labelWidth - 10,
+        y2 = event.clientY + 25;
+
+    //horizontal label coordinate, testing for overflow
+    var x = event.clientX > window.innerWidth - labelWidth - 20 ? x2 : x1; 
+    //vertical label coordinate, testing for overflow
+    var y = event.clientY < 75 ? y2 : y1; 
+
+    d3.select(".infolabel")
+        .style("left", x + "px")
+        .style("top", y + "px");
+};
+
 })(); //last line of main.js

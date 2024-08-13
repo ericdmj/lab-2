@@ -27,13 +27,11 @@
 .chart {
     
     margin: 7px 20px 0 0;
-    position: absolute;
-    top: 350px;
-    left: 30px;
 }
 
 .chartTitle {
-    font-family: sans-serif;
+    fill: #3b2900;
+    font-family: Garamond, Georgia, 'Times New Roman', Times, serif;
     font-size: 1.1em;
     font-weight: bold;
     text-align: right;
@@ -59,10 +57,65 @@
 }
 
 .axis text {
-    font-family: sans-serif;
+    font-family: Garamond, Georgia, 'Times New Roman', Times, serif;
     font-size: 0.9em;
     fill: #3b2900;
     paint-order: stroke;
     stroke: #f4f0e7;
     stroke-width: 3px;
+}
+
+.dropdown {
+    position: absolute;
+    top: 35px;
+    left: 45px;
+    z-index: 10;
+    font-family: Garamond, Georgia, 'Times New Roman', Times, serif;
+    color: #3b2900;
+    font-size: 1em;
+    font-weight: bold;
+    padding: 2px;
+    border: 1px solid #3b2900;
+    box-shadow: 2px 2px 4px #999;
+}
+
+option {
+    font-weight: normal;
+}
+
+.infolabel {
+    margin: 0 20px 0 0;
+    position: absolute;
+    height: 50px;
+    min-width: 100px;
+    font-family: Garamond, Georgia, 'Times New Roman', Times, serif;
+    color: #f4f0e7;
+    background-color: #3b2900;
+    border: solid thin #f4f0e7;
+    border-radius: 10px;
+    padding: 5px 10px;
+    top: -75px;
+}
+
+.infolabel h1 {
+    margin: 0 20px 0 0;
+    padding: 0;
+    display: inline-block;
+    line-height: 1.2em;
+    font-size: 24px;
+}
+
+.titleBox {
+    fill: #445C53;
+    fill-opacity: .9;
+    stroke: #3b2900;
+}
+
+.mapTitle {
+    font-family: Garamond, Georgia, 'Times New Roman', Times, serif;
+    font-size: 36px;
+    font-weight: bold;
+    fill: white;
+    stroke:#3b2900;
+    stroke-width: .5px;
 }
